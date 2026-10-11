@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { Heart, Search, ShoppingBag, UserRound, X } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { useCart } from "../../context/CartContext.jsx";
 import { useFocusTrap } from "../../hooks/useFocusTrap.js";
@@ -21,6 +22,7 @@ const cls = ({ isActive }) =>
 export function Header() {
   const { user, logout } = useAuth();
   const { count, openDrawer, wish } = useCart();
+
   const nav = useNavigate();
   const loc = useLocation();
 
@@ -30,10 +32,12 @@ export function Header() {
   const [visited, setVisited] = useState([]);
 
   const drawerRef = useRef(null);
+
   useFocusTrap(drawerRef, open);
 
   const show = (g) => {
     setMenu(g);
+
     if (g) {
       setVisited((v) => (v.includes(g) ? v : [...v, g]));
     }
@@ -74,6 +78,8 @@ export function Header() {
     }
   };
 
+  const closeDrawer = () => setOpen(false);
+
   return (
     <header
       className="sticky top-0 z-30 bg-paper border-b rule"
@@ -87,12 +93,14 @@ export function Header() {
         Skip to content
       </a>
 
-      {/* Top bar */}
-      <div className="wrap grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center h-16 md:h-20">
-        {/* Desktop navigation */}
+      {/* Main navbar */}
+
+      {/* Main navbar */}
+      <div className="wrap relative flex items-center justify-between h-16 md:h-20">
+        {/* Left: Navigation */}
         <nav
           aria-label="Primary"
-          className="hidden md:flex min-w-0 items-center gap-4 lg:gap-8 whitespace-nowrap"
+          className="hidden md:flex items-center gap-4 lg:gap-6 xl:gap-8 whitespace-nowrap"
         >
           {NAV.map(([label, to, g]) => (
             <NavLink
@@ -108,10 +116,10 @@ export function Header() {
           ))}
         </nav>
 
-        {/* Mobile menu button */}
+        {/* Mobile menu */}
         <button
           type="button"
-          className="md:hidden eyebrow !text-ink font-semibold justify-self-start py-3"
+          className="md:hidden eyebrow !text-ink font-semibold py-3"
           aria-expanded={open}
           aria-controls="drawer"
           onClick={() => setOpen(true)}
@@ -119,54 +127,61 @@ export function Header() {
           Menu
         </button>
 
-        {/* Logo */}
+        {/* Center: Logo */}
         <Link
           to="/"
-          className="font-display text-2xl tracking-[0.04em] justify-self-center whitespace-nowrap"
+          className="absolute left-1/2 -translate-x-1/2 font-display text-2xl tracking-[0.04em] whitespace-nowrap"
           aria-label="Nessence home"
         >
           NESSENCE
         </Link>
 
-        {/* Right side actions */}
-        <div className="hidden md:flex min-w-0 items-center justify-end gap-3 lg:gap-6 whitespace-nowrap">
+        {/* Right: Icons */}
+        <div className="hidden md:flex items-center gap-4 lg:gap-6 ml-auto">
           <button
             type="button"
-            className="eyebrow !text-ink font-semibold py-2"
+            aria-label="Search products"
             aria-expanded={searching}
             aria-controls="header-search"
             onClick={() => setSearching((s) => !s)}
+            className="p-1 text-ink hover:opacity-60 transition-opacity"
           >
-            Search
+            <Search size={18} strokeWidth={1.5} />
           </button>
 
           <Link
-            to="/account/wishlist"
-            className="eyebrow !text-ink font-semibold py-2"
+            to={user ? "/account" : "/login"}
+            aria-label={user ? "Account" : "Sign in"}
+            className="p-1 text-ink hover:opacity-60 transition-opacity"
           >
-            Wishlist{wish.length > 0 && ` (${wish.length})`}
+            <UserRound size={18} strokeWidth={1.5} />
           </Link>
 
-          {user ? (
-            <Link
-              to="/account"
-              className="eyebrow !text-ink font-semibold py-2"
-            >
-              Account
-            </Link>
-          ) : (
-            <Link to="/login" className="eyebrow !text-ink font-semibold py-2">
-              Sign in
-            </Link>
-          )}
+          <Link
+            to="/account/wishlist"
+            aria-label={`Wishlist, ${wish.length} items`}
+            className="relative p-1 text-ink hover:opacity-60 transition-opacity"
+          >
+            <Heart size={18} strokeWidth={1.5} />
+            {wish.length > 0 && (
+              <span className="absolute -top-1 -right-1 text-[9px]">
+                {wish.length}
+              </span>
+            )}
+          </Link>
 
           <button
             type="button"
-            className="eyebrow !text-ink font-semibold py-2"
-            onClick={openDrawer}
             aria-label={`Open bag, ${count} items`}
+            onClick={openDrawer}
+            className="relative p-1 text-ink hover:opacity-60 transition-opacity"
           >
-            Bag ({count})
+            <ShoppingBag size={18} strokeWidth={1.5} />
+            {count > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-3.5 h-3.5 rounded-full bg-ink text-paper text-[9px] flex items-center justify-center">
+                {count}
+              </span>
+            )}
           </button>
         </div>
       </div>
@@ -190,7 +205,7 @@ export function Header() {
         ))}
       </div>
 
-      {/* Search bar */}
+      {/* Search form */}
       {searching && (
         <form
           id="header-search"
@@ -210,7 +225,7 @@ export function Header() {
               minLength={2}
               maxLength={80}
               placeholder="Search dresses, coats, boots…"
-              className="field"
+              className="field min-w-0 flex-1"
             />
 
             <button type="submit" className="btn btn-solid">
@@ -231,106 +246,125 @@ export function Header() {
           aria-label="Menu"
           className="fixed inset-0 z-40 bg-paper md:hidden flex flex-col"
         >
+          {/* Drawer header */}
           <div className="wrap flex justify-between items-center h-16 border-b rule">
-            <span className="font-display text-2xl">NESSENCE</span>
+            <Link
+              to="/"
+              className="font-display text-2xl"
+              onClick={closeDrawer}
+            >
+              NESSENCE
+            </Link>
 
             <button
               type="button"
-              className="eyebrow !text-ink font-semibold py-3"
-              onClick={() => setOpen(false)}
+              className="inline-flex items-center gap-2 eyebrow !text-ink font-semibold py-3"
+              onClick={closeDrawer}
+              aria-label="Close menu"
             >
               Close
+              <X size={16} strokeWidth={1.6} aria-hidden="true" />
             </button>
           </div>
 
+          {/* Drawer navigation */}
           <nav aria-label="Mobile" className="wrap flex flex-col flex-1 pt-6">
-            <DrawerGroup gender="men" onNavigate={() => setOpen(false)} />
+            <DrawerGroup gender="men" onNavigate={closeDrawer} />
 
-            <DrawerGroup gender="women" onNavigate={() => setOpen(false)} />
+            <DrawerGroup gender="women" onNavigate={closeDrawer} />
 
             {NAV.filter(([, , g]) => !g).map(([label, to]) => (
               <Link
                 key={to}
                 to={to}
-                onClick={() => setOpen(false)}
+                onClick={closeDrawer}
                 className="font-display text-3xl py-3 border-b rule"
               >
                 {label}
               </Link>
             ))}
 
-            <div className="mt-auto pb-8 flex flex-wrap gap-6">
-              <button
-                type="button"
-                className="eyebrow !text-ink"
-                onClick={() => {
-                  setOpen(false);
-                  setSearching(true);
-                }}
-              >
-                Search
-              </button>
+            {/* Mobile action icons */}
+            <div className="mt-auto pb-8">
+              <div className="flex items-center gap-7 py-5 border-b rule">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 eyebrow !text-ink"
+                  onClick={() => {
+                    setOpen(false);
+                    setSearching(true);
+                  }}
+                >
+                  <Search size={17} strokeWidth={1.6} aria-hidden="true" />
+                  Search
+                </button>
 
-              <Link
-                to="/account/wishlist"
-                onClick={() => setOpen(false)}
-                className="eyebrow !text-ink"
-              >
-                Wishlist{wish.length > 0 && ` (${wish.length})`}
-              </Link>
+                <Link
+                  to="/account/wishlist"
+                  onClick={closeDrawer}
+                  className="inline-flex items-center gap-2 eyebrow !text-ink"
+                >
+                  <Heart size={17} strokeWidth={1.6} aria-hidden="true" />
+                  Wishlist
+                  {wish.length > 0 && ` (${wish.length})`}
+                </Link>
 
-              <button
-                type="button"
-                className="eyebrow !text-ink"
-                onClick={() => {
-                  setOpen(false);
-                  openDrawer();
-                }}
-              >
-                Bag ({count})
-              </button>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 eyebrow !text-ink"
+                  onClick={() => {
+                    setOpen(false);
+                    openDrawer();
+                  }}
+                >
+                  <ShoppingBag size={17} strokeWidth={1.6} aria-hidden="true" />
+                  Bag ({count})
+                </button>
+              </div>
 
-              {user ? (
-                <>
-                  <Link
-                    to="/account"
-                    onClick={() => setOpen(false)}
-                    className="eyebrow !text-ink"
-                  >
-                    Account
-                  </Link>
+              <div className="flex flex-wrap gap-6 pt-5">
+                {user ? (
+                  <>
+                    <Link
+                      to="/account"
+                      onClick={closeDrawer}
+                      className="eyebrow !text-ink"
+                    >
+                      Account
+                    </Link>
 
-                  <button
-                    type="button"
-                    className="eyebrow !text-ink"
-                    onClick={async () => {
-                      await logout();
-                      setOpen(false);
-                      nav("/");
-                    }}
-                  >
-                    Sign out
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Link
-                    to="/login"
-                    onClick={() => setOpen(false)}
-                    className="eyebrow !text-ink"
-                  >
-                    Sign in
-                  </Link>
+                    <button
+                      type="button"
+                      className="eyebrow !text-ink"
+                      onClick={async () => {
+                        await logout();
+                        setOpen(false);
+                        nav("/");
+                      }}
+                    >
+                      Sign out
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      to="/login"
+                      onClick={closeDrawer}
+                      className="eyebrow !text-ink"
+                    >
+                      Sign in
+                    </Link>
 
-                  <Link
-                    to="/register"
-                    onClick={() => setOpen(false)}
-                    className="eyebrow !text-ink"
-                  >
-                    Create account
-                  </Link>
-                </>
-              )}
+                    <Link
+                      to="/register"
+                      onClick={closeDrawer}
+                      className="eyebrow !text-ink"
+                    >
+                      Create account
+                    </Link>
+                  </>
+                )}
+              </div>
             </div>
           </nav>
         </div>
