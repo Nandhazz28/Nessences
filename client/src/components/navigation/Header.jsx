@@ -5,6 +5,7 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import { useCart } from "../../context/CartContext.jsx";
 import { useFocusTrap } from "../../hooks/useFocusTrap.js";
 import { DrawerGroup, MegaPanel } from "./MegaMenu.jsx";
+import "../../index.css";
 
 const NAV = [
   ["Men", "/men", "men"],
@@ -117,17 +118,17 @@ export function Header() {
         </nav>
 
         {/* Mobile menu */}
+
         <button
           type="button"
-          className="md:hidden eyebrow !text-ink font-semibold py-3"
+          className="mobile-menu-button eyebrow !text-ink font-semibold py-3"
           aria-expanded={open}
           aria-controls="drawer"
-          onClick={() => setOpen(true)}
+          onClick={() => setOpen((current) => !current)}
         >
-          Menu
+          {open ? "Close" : "Menu"}
         </button>
 
-        {/* Center: Logo */}
         <Link
           to="/"
           className="absolute left-1/2 -translate-x-1/2 font-display text-2xl tracking-[0.04em] whitespace-nowrap"
@@ -186,7 +187,6 @@ export function Header() {
         </div>
       </div>
 
-      {/* Mega menu panels */}
       <div
         className="hidden md:block"
         onBlur={(e) => {
@@ -205,7 +205,6 @@ export function Header() {
         ))}
       </div>
 
-      {/* Search form */}
       {searching && (
         <form
           id="header-search"
@@ -235,7 +234,6 @@ export function Header() {
         </form>
       )}
 
-      {/* Mobile drawer */}
       {open && (
         <div
           id="drawer"
@@ -244,30 +242,8 @@ export function Header() {
           role="dialog"
           aria-modal="true"
           aria-label="Menu"
-          className="fixed inset-0 z-40 bg-paper md:hidden flex flex-col"
+          className="fixed inset-x-0 top-16 bottom-0 z-40 bg-paper md:hidden flex flex-col"
         >
-          {/* Drawer header */}
-          <div className="wrap flex justify-between items-center h-16 border-b rule">
-            <Link
-              to="/"
-              className="font-display text-2xl"
-              onClick={closeDrawer}
-            >
-              NESSENCE
-            </Link>
-
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 eyebrow !text-ink font-semibold py-3"
-              onClick={closeDrawer}
-              aria-label="Close menu"
-            >
-              Close
-              <X size={16} strokeWidth={1.6} aria-hidden="true" />
-            </button>
-          </div>
-
-          {/* Drawer navigation */}
           <nav aria-label="Mobile" className="wrap flex flex-col flex-1 pt-6">
             <DrawerGroup gender="men" onNavigate={closeDrawer} />
 
@@ -284,7 +260,6 @@ export function Header() {
               </Link>
             ))}
 
-            {/* Mobile action icons */}
             <div className="mt-auto pb-8">
               <div className="flex items-center gap-7 py-5 border-b rule">
                 <button
