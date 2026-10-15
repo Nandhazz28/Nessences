@@ -10,7 +10,6 @@ const staffSchema = new mongoose.Schema({
   mustChangePassword: { type: Boolean, default: false },
   failedLogins: { type: Number, default: 0, select: false },
   lockUntil: { type: Date, select: false },
-  refreshTokens: { type: [{ hash: String, expiresAt: Date, userAgent: String, _id: false }], default: [], select: false },
   lastLoginAt: Date,
 }, { timestamps: true });
 

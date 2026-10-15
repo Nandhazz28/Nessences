@@ -4,11 +4,9 @@ import { env } from '../../config/env.js';
 import { randomToken, sha256 } from '../../utils/tokens.js';
 import { sendEmail } from '../emailService.js';
 
-// Double opt-in: nobody is subscribed until they click the link sent to their own inbox.
 export async function subscribe(email, source = 'footer') {
   let sub = await NewsletterSubscriber.findOne({ email }).select('+unsubscribeToken');
-  if (sub?.status === 'subscribed') return; // identical response either way — no enumeration
-  const token = randomToken(32);
+  if (sub?.status === 'subscribed') return; 
   if (!sub) sub = new NewsletterSubscriber({ email, source });
   sub.status = 'pending'; sub.confirmTokenHash = sha256(token); sub.unsubscribeToken ??= randomToken(24);
   await sub.save();

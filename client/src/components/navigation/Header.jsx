@@ -5,7 +5,6 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import { useCart } from "../../context/CartContext.jsx";
 import { useFocusTrap } from "../../hooks/useFocusTrap.js";
 import { DrawerGroup, MegaPanel } from "./MegaMenu.jsx";
-import "../../index.css";
 
 const NAV = [
   ["Men", "/men", "men"],
@@ -22,7 +21,7 @@ const cls = ({ isActive }) =>
 
 export function Header() {
   const { user, logout } = useAuth();
-  const { count, openDrawer, wish } = useCart();
+  const { count, openDrawer, wish, setNotice } = useCart();
 
   const nav = useNavigate();
   const loc = useLocation();
@@ -95,8 +94,6 @@ export function Header() {
       </a>
 
       {/* Main navbar */}
-
-      {/* Main navbar */}
       <div className="wrap relative flex items-center justify-between h-16 md:h-20">
         {/* Left: Navigation */}
         <nav
@@ -160,7 +157,7 @@ export function Header() {
 
           <Link
             to="/account/wishlist"
-            aria-label={`Wishlist, ${wish.length} items`}
+            aria-label={`Wishlist, ${wish.length} ${wish.length === 1 ? "item" : "items"}`}
             className="relative p-1 text-ink hover:opacity-60 transition-opacity"
           >
             <Heart size={18} strokeWidth={1.5} />
@@ -173,7 +170,7 @@ export function Header() {
 
           <button
             type="button"
-            aria-label={`Open bag, ${count} items`}
+            aria-label={`Open bag, ${count} ${count === 1 ? "item" : "items"}`}
             onClick={openDrawer}
             className="relative p-1 text-ink hover:opacity-60 transition-opacity"
           >
@@ -312,9 +309,8 @@ export function Header() {
                       type="button"
                       className="eyebrow !text-ink"
                       onClick={async () => {
-                        await logout();
-                        setOpen(false);
-                        nav("/");
+                        try { await logout(); setOpen(false); nav("/"); }
+                        catch (e) { setNotice(e.message || "We could not sign you out. Please try again."); } // still signed in: say so
                       }}
                     >
                       Sign out

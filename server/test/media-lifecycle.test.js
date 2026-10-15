@@ -26,7 +26,6 @@ function setup({ assets = [], products = [], articles = [], orders = [], returns
 }
 const asset = (id, extra = {}) => ({ publicId: id, url: URL_OF(id), purpose: 'product', status: 'pending', uploadedBy: 'staff1', updatedAt: new Date('2026-10-10T00:00:00Z'), ...extra });
 
-// ---------- upload ----------
 test('upload registers the asset BEFORE storing it, then records url + metadata', async () => {
   const { svc, A } = setup();
   const r = await svc.uploadImage(jpeg, { staffId: 'staff1' });
@@ -46,7 +45,6 @@ test('provider failure on upload: the caller gets the provider error and the reg
   log.uploadErr = new ApiError(504, 'STORAGE_TIMEOUT', 'timeout');
   await assert.rejects(svc.uploadImage(jpeg, { staffId: 's' }), (e) => e.code === 'STORAGE_TIMEOUT');
   assert.equal(A.docs.length, 1); assert.equal(A.docs[0].lastError, 'STORAGE_TIMEOUT'); assert.equal(A.docs[0].url, undefined);
-  // the asset may have landed despite the timeout, so the sweep tries to destroy it (idempotent) and drops the row
   assert.deepEqual(await svc.reconcile(), { checked: 0, deleted: 0, repaired: 0, failed: 0 }); // too fresh
   advance(UPLOAD_GRACE_MS + 1000); log.uploadErr = null;
   A.docs[0].updatedAt = new Date('2026-10-10T00:00:00Z');
@@ -69,7 +67,6 @@ test('registry unavailable before upload: nothing is sent to storage', async () 
   assert.equal(log.n, 1); assert.equal(log.destroyed.length, 0);
 });
 
-// ---------- attach ----------
 test('resolveImages: publicId comes from the registry; a client-supplied publicId is ignored', async () => {
   const { svc } = setup({ assets: [asset('nessence/products/a1', { width: 10 })] });
   const [img] = await svc.resolveImages([{ url: URL_OF('nessence/products/a1'), alt: 'Front', color: 'Ink', publicId: 'nessence/products/VICTIM' }]);
@@ -96,10 +93,9 @@ test('markAttached promotes pending to active; failures are swallowed for the re
   await svc.markAttached([{ publicId: 'nessence/products/a1' }, {}]);
   assert.equal(A.docs[0].status, 'active');
   A.updateMany = async () => { throw new Error('x'); };
-  await svc.markAttached([{ publicId: 'nessence/products/a1' }]); // must not throw
+  await svc.markAttached([{ publicId: 'nessence/products/a1' }]); 
 });
 
-// ---------- release / deletion ----------
 test('release deletes an unreferenced asset and its registry row', async () => {
   const id = 'nessence/products/a1';
   const { svc, A, log } = setup({ assets: [asset(id, { status: 'active' })] });
@@ -156,7 +152,6 @@ test('removedBetween identifies only images that actually left the record', () =
   assert.deepEqual(svc.removedBetween(before, before), []);
 });
 
-// ---------- explicit discard + authorization ----------
 test('discardUpload: only the uploader, only unattached images', async () => {
   const id = 'nessence/products/a1';
   const mk = (extra) => setup({ assets: [asset(id, extra)] });
@@ -170,7 +165,6 @@ test('discardUpload: only the uploader, only unattached images', async () => {
   assert.equal(other.log.destroyed.length + active.log.destroyed.length + used.log.destroyed.length, 0);
 });
 
-// ---------- reconcile ----------
 test('reconcile leaves recent and active assets alone, removes stale unattached uploads', async () => {
   const old = new Date('2026-10-10T00:00:00Z');
   const { svc, A, log, advance } = setup({ assets: [asset('nessence/products/fresh'), asset('nessence/products/active', { status: 'active' }), asset('nessence/products/stale', { updatedAt: old })] });
@@ -181,7 +175,6 @@ test('reconcile leaves recent and active assets alone, removes stale unattached 
   assert.deepEqual(A.docs.map((d) => d.publicId).sort(), ['nessence/products/active', 'nessence/products/fresh']);
 });
 
-// ---------- legacy migration ----------
 test('migrateLegacy: dry run only counts; apply uploads, rewrites the document and keeps the local file', async () => {
   const f = '/media/products/' + 'c'.repeat(36) + '.jpg';
   const mkDoc = () => ({ images: [{ url: f, alt: 'a' }, { url: '/media/seed/x.svg', alt: 'b' }], saved: 0, async save() { this.saved++; } });

@@ -65,7 +65,7 @@ test('public endpoints: validation, honeypot, auth guards — none of these need
   assert.equal((await post('/api/contact', { ...good, message: 'short' })).status, 400);
   assert.equal((await post('/api/contact', { ...good, orderNumber: 'ABC' })).status, 400);
   assert.equal((await post('/api/contact', { ...good, extra: 1 })).status, 400);
-  const bot = await post('/api/contact', { ...good, website: 'http://spam.example' });   // honeypot filled
+  const bot = await post('/api/contact', { ...good, website: 'http://spam.example' });  
   assert.equal(bot.status, 201); assert.deepEqual((await bot.json()).data, { received: true });
 
   assert.equal((await post('/api/newsletter', { email: 'bad' })).status, 400);
@@ -78,7 +78,7 @@ test('public endpoints: validation, honeypot, auth guards — none of these need
   for (const p of ['/api/admin/staff', '/api/admin/reviews', '/api/admin/newsletter/export.csv', '/api/admin/analytics', '/api/admin/settings', '/api/admin/contact-messages', '/api/admin/journal', '/api/admin/content'])
     assert.equal((await fetch(base + p)).status, 401, p);
 
-  assert.equal((await fetch(base + '/api/content/not-a-page')).status, 404);       // unknown key rejected before any lookup
+  assert.equal((await fetch(base + '/api/content/not-a-page')).status, 404);       
   assert.equal((await fetch(base + '/api/content/..%2Fsecret')).status, 400);
   server.close();
 });

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-process.env.MONGODB_URI ??= 'mongodb://x'; // pricing is pure; env not needed but keep imports safe
+process.env.MONGODB_URI ??= 'mongodb://x';
 import { computeTotals, evaluateCoupon } from '../src/services/pricing.js';
 
 const pct = { active: true, type: 'percent', value: 10, minOrder: 200000, maxDiscount: 300000, usedCount: 0 };
@@ -8,14 +8,14 @@ const pct = { active: true, type: 'percent', value: 10, minOrder: 200000, maxDis
 test('free shipping at/above ₹5,000 after discount, flat ₹299 below', () => {
   assert.equal(computeTotals(500000, 0, 1).shipping, 0);
   assert.equal(computeTotals(499900, 0, 1).shipping, 29900);
-  assert.equal(computeTotals(520000, 30000, 1).shipping, 29900); // discount pushes it under threshold
+  assert.equal(computeTotals(520000, 30000, 1).shipping, 29900); 
 });
 test('empty bag has no shipping or tax', () => {
   assert.deepEqual(computeTotals(0, 0, 0), { subtotal: 0, discount: 0, shipping: 0, tax: 0, total: 0, itemCount: 0 });
 });
 test('tax is 5% of the discounted subtotal and total adds up', () => {
   const t = computeTotals(3990000, 0, 3);
-  assert.equal(t.tax, 199500); assert.equal(t.shipping, 0); assert.equal(t.total, 4189500); // ₹41,895 as in the design reference
+  assert.equal(t.tax, 199500); assert.equal(t.shipping, 0); assert.equal(t.total, 4189500); 
 });
 test('percent coupon is floored and capped', () => {
   assert.equal(evaluateCoupon(pct, 999999), 99999);

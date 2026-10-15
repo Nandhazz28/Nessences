@@ -73,12 +73,12 @@ export function Notifications() {
 }
 
 export function Settings() {
-  const { user, setUser, logout } = useAuth(); const nav = useNavigate();
+  const { user, setUser } = useAuth(); const nav = useNavigate();
   const [msg, setMsg] = useState(''); const [err, setErr] = useState(''); const [del, setDel] = useState(false); const [busy, setBusy] = useState(false);
   const toggle = async (key, value) => { setErr(''); setMsg(''); try { setUser((await accountApi.setPrefs({ [key]: value })).user); setMsg('Preferences saved.'); } catch (e) { setErr(e.message); } };
   const remove = async (e) => {
     e.preventDefault(); setBusy(true); setErr('');
-    try { await accountApi.deleteAccount(new FormData(e.currentTarget).get('password')); await logout().catch(() => {}); nav('/', { replace: true }); }
+    try { await accountApi.deleteAccount(new FormData(e.currentTarget).get('password')); setUser(null); nav('/', { replace: true }); }
     catch (x) { setErr(x.message); setBusy(false); }
   };
   const p = user.preferences ?? {};
@@ -98,14 +98,14 @@ export function Settings() {
 }
 
 export function Security() {
-  const { logout } = useAuth(); const nav = useNavigate();
+  const { setUser } = useAuth(); const nav = useNavigate();
   const sessions = useAsync(() => accountApi.sessions(), []);
   const [busy, setBusy] = useState(false); const [err, setErr] = useState(null);
   const change = async (e) => {
     e.preventDefault(); setErr(null); const d = Object.fromEntries(new FormData(e.currentTarget));
     if (d.newPassword !== d.confirm) return setErr({ details: [{ field: 'confirm', message: 'Passwords do not match' }] });
     setBusy(true);
-    try { await authApi.changePassword(d.currentPassword, d.newPassword); await logout().catch(() => {}); nav('/login', { replace: true }); } // server ends all sessions on change
+    try { await authApi.changePassword(d.currentPassword, d.newPassword); setUser(null); nav('/login', { replace: true }); } // server ends all sessions on change
     catch (x) { setErr(x); setBusy(false); }
   };
   const fe = fieldErrors(err);
@@ -120,7 +120,7 @@ export function Security() {
       <div className="mt-14 pt-6 border-t rule"><h3 className="text-[length:var(--text-h3)]">Active sessions</h3>
         {sessions.loading ? <p className="text-small text-muted mt-3">Loading…</p> : sessions.error ? <ErrorState error={sessions.error} onRetry={sessions.reload} /> : (
           <ul className="mt-3 text-small">{sessions.data.map((s) => <li key={s.id} className="py-2 border-b rule">{s.device}<span className="text-muted"> · expires {date(s.expiresAt)}</span></li>)}</ul>)}
-        <button className="btn btn-line mt-4" onClick={async () => { await accountApi.signOutEverywhere(); await logout().catch(() => {}); nav('/login', { replace: true }); }}>Sign out of all devices</button></div>
+        <button className="btn btn-line mt-4" onClick={async () => { await accountApi.signOutEverywhere(); setUser(null); nav('/login', { replace: true }); }}>Sign out of all devices</button></div>
     </div>
   );
 }

@@ -70,7 +70,7 @@ export async function createProduct(body) {
   await assertRefs(body.categoryId, body.collectionIds);
   const { variants, ...rest } = body;
   const slug = await uniqueSlug(body.slug ?? body.name);
-  const images = await media.resolveImages(rest.images ?? []); // publicId comes from the upload registry, never from the client
+  const images = await media.resolveImages(rest.images ?? []); 
   const product = new Product({ ...toDoc({ ...rest, images, status: 'draft' }), slug });
   await product.save();
   await media.markAttached(images);
@@ -103,7 +103,7 @@ export async function removeOrArchive(id) {
   const images = product.images.map((i) => i.toObject());
   await Promise.all([ProductVariant.deleteMany({ product: product._id }), Inventory.deleteMany({ product: product._id })]);
   await product.deleteOne();
-  await media.release(images); // only after the document is gone, and only assets nothing else references
+  await media.release(images);
   return { result: 'deleted', product };
 }
 

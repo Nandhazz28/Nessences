@@ -21,6 +21,13 @@ const load = (scope, Model) => async (req, _res, next) => {
 
 export const requireAuth = load('customer', User);
 export const requireStaff = load('staff', StaffUser);
+// A staff member holding a temporary password may only learn that fact (GET /permissions); every other admin call is refused
+// until they have chosen their own password. Enforced here, not by the admin UI.
+export const passwordGate = (req, _res, next) => {
+  if (!req.staff?.mustChangePassword) return next();
+  if (req.method === 'GET' && req.path === '/permissions') return next();
+  next(ApiError.forbidden('PASSWORD_CHANGE_REQUIRED', 'Please change your temporary password before continuing'));
+};
 export const requirePermission = (permission) => {
   const mw = (req, _res, next) => (can(req.staff?.role, permission) ? next() : next(ApiError.forbidden('INSUFFICIENT_PERMISSIONS')));
   Object.defineProperty(mw, 'name', { value: `perm:${permission}` }); // lets tests prove every admin route is guarded

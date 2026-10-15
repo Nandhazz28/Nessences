@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useCart } from '../context/CartContext.jsx';
 import { useSeo } from '../hooks/useSeo.js';
@@ -9,6 +9,7 @@ import { AddressForm } from '../components/checkout/AddressForm.jsx';
 import { Totals } from '../components/cart/CartLines.jsx';
 import { ErrorState, EmptyState, Spinner } from '../components/common/States.jsx';
 import { formatMoney } from '../utils/format.js';
+import { SessionGate } from '../components/common/SessionGate.jsx';
 
 const STEPS = ['Address', 'Delivery', 'Payment'];
 
@@ -20,6 +21,7 @@ export default function Checkout() {
   const [cfg, setCfg] = useState(null); const [delivery, setDelivery] = useState('standard');
   const [view, setView] = useState(null); const [loadErr, setLoadErr] = useState(null);
   const [paying, setPaying] = useState(false); const [payErr, setPayErr] = useState('');
+  const submitting = useRef(false); 
 
   const boot = useCallback(() => {
     setLoadErr(null);
@@ -31,14 +33,15 @@ export default function Checkout() {
   useEffect(() => { if (user) checkoutApi.preview(delivery).then(setView, setLoadErr); }, [user, delivery]);
 
   if (!ready) return <Spinner />;
-  if (!user) return <Navigate to="/login" state={{ from: loc.pathname }} replace />;
+  if (!user) return <SessionGate from={loc.pathname} />;
   if (loadErr) return <ErrorState error={loadErr} onRetry={() => { boot(); checkoutApi.preview(delivery).then(setView, setLoadErr); }} />;
   if (!addresses || !cfg || !view) return <Spinner />;
   if (view.items.length === 0) return <EmptyState title="Your bag is empty" action={<Link to="/new-arrivals" className="btn btn-solid">Shop new arrivals</Link>} />;
   if (!view.canCheckout) return <EmptyState title="Your bag needs attention" body="Some items are out of stock or have changed. Please review your bag." action={<Link to="/cart" className="btn btn-solid">Review bag</Link>} />;
 
   const pay = async () => {
-    setPaying(true); setPayErr('');
+    if (submitting.current) return;
+    submitting.current = true; setPaying(true); setPayErr('');
     let order;
     try {
       const created = await checkoutApi.createOrder({ addressId: addrId, delivery });
@@ -51,11 +54,12 @@ export default function Checkout() {
           try { await checkoutApi.verify(order.id, resp); } catch { /* the webhook will confirm; the success page polls */ }
           reloadCart(); nav(`/checkout/success?order=${order.id}`, { replace: true });
         },
-        modal: { ondismiss: () => { setPaying(false); setPayErr('Payment was not completed. Your items are held for a short time — you can try again.'); } },
+        modal: { ondismiss: () => { submitting.current = false; setPaying(false); setPayErr('Payment was not completed. Your items are held for a short time — you can try again.'); } },
       });
-      rzp.on('payment.failed', (r) => { checkoutApi.paymentFailed(order.id, r.error?.description); setPayErr(r.error?.description || 'The payment failed. You can try again or use another method.'); });
+      rzp.on('payment.failed', (r) => { checkoutApi.paymentFailed(order.id, r.error?.description).catch(() => {}); // best-effort note for support; the webhook is the source of truth
+        setPayErr(r.error?.description || 'The payment failed. You can try again or use another method.'); });
       rzp.open();
-    } catch (e) { setPaying(false); setPayErr(e.message); if (e.code === 'INSUFFICIENT_STOCK' || e.code === 'CART_HAS_ISSUES') reloadCart(); }
+    } catch (e) { submitting.current = false; setPaying(false); setPayErr(e.message); if (e.code === 'INSUFFICIENT_STOCK' || e.code === 'CART_HAS_ISSUES') reloadCart(); }
   };
 
   const addr = addresses.find((a) => a.id === addrId);

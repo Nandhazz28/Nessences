@@ -1,4 +1,3 @@
-// Development seed. Inserts real documents into MongoDB; the app only ever reads them through the API.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -32,7 +31,6 @@ const COLORS = {
 };
 const darkish = (hex) => { const n = parseInt(hex.slice(1), 16); return ((n >> 16) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11) < 110; };
 
-// Line-art silhouettes (viewBox 400x500), same editorial language as the Nessence design reference.
 const SHAPES = {
   dresses: 'M170 70 L148 120 L160 150 L112 440 L288 440 L240 150 L252 120 L230 70 Q200 112 170 70Z',
   jackets: 'M150 70 L96 108 L78 330 L112 336 L118 450 L282 450 L288 336 L322 330 L304 108 L250 70 L200 130Z M200 130 L200 450',
@@ -80,7 +78,6 @@ const COLLECTIONS = [
   ['Structured Tailoring', 'Clean lines, considered shoulders, trousers that hold their crease.', 'Core', false],
 ];
 
-// name, gender, category, price(INR), sale(INR|0), colours, collection, fabric, blurb, [newArrival]
 const P = [
   ['Bias Slip Dress', 'women', 'dresses', 9400, 0, ['Ecru', 'Ink', 'Oxblood'], 'Quiet Evening', 'satin', 'A bias-cut slip in a weighted matte satin that skims rather than clings. Adjustable straps, a low cowl back and a hem that falls just below the knee.', 1],
   ['Poplin Shirt Dress', 'women', 'dresses', 8200, 0, ['Stone', 'Ink'], 'Structured Tailoring', 'cotton', 'A crisp shirt dress in dense cotton poplin with a concealed placket and a slightly dropped shoulder.'],

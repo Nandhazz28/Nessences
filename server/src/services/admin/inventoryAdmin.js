@@ -13,7 +13,6 @@ export async function listInventory({ q, low, page, limit }) {
   return { items: rows.map((i) => ({ variantId: i.variant?._id, sku: i.sku, product: i.product?.name, productId: i.product?._id, status: i.product?.status, color: i.variant?.color?.name, size: i.variant?.size, active: i.variant?.active, stock: i.stock, reserved: i.reserved, available: i.stock - i.reserved, lowStockThreshold: i.lowStockThreshold })), pagination: { page, limit, total, pages: Math.max(1, Math.ceil(total / limit)) } };
 }
 
-// Atomic: never lets stock drop below what is already reserved by unpaid/paid-but-uncommitted orders.
 export async function adjustStock(variantId, { stock, delta, lowStockThreshold }) {
   const set = {}; const filter = { variant: variantId };
   if (lowStockThreshold !== undefined) set.lowStockThreshold = lowStockThreshold;

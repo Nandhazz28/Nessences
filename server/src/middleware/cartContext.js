@@ -8,8 +8,6 @@ import { COMMERCE } from '../config/commerce.js';
 export const GUEST_COOKIE = 'nx_cart';
 const guestCookieOpts = () => ({ httpOnly: true, secure: env.isProd, sameSite: env.COOKIE_SAMESITE, domain: env.COOKIE_DOMAIN, path: '/api', maxAge: COMMERCE.guestCartDays * 86400000 });
 
-// Signed-in customer if a valid session exists; guest otherwise.
-// A present-but-expired token returns 401 so the client refreshes instead of silently showing a guest cart.
 export async function optionalAuth(req, _res, next) {
   try {
     const token = req.cookies?.nx_at;

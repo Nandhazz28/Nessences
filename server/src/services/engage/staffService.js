@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import { StaffUser } from '../../models/StaffUser.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { hashPassword } from '../authService.js';
+import { revokeAllSessions } from '../sessionService.js';
 
 const LAST_SUPER = () => ApiError.conflict('LAST_SUPER_ADMIN', 'At least one active super admin must remain');
 const otherActiveSupers = (id) => StaffUser.countDocuments({ role: 'super_admin', active: true, _id: { $ne: id } });
@@ -22,17 +23,17 @@ export async function update(id, actor, { name, role, active }) {
   if (losesSuper && (await otherActiveSupers(s._id)) === 0) throw LAST_SUPER();
   const before = { role: s.role, active: s.active };
   if (name !== undefined) s.name = name; if (role !== undefined) s.role = role; if (active !== undefined) s.active = active;
-  if (active === false || (role !== undefined && role !== before.role)) s.refreshTokens = []; // permission change takes effect immediately
   await s.save();
+  if (active === false || (role !== undefined && role !== before.role)) await revokeAllSessions(s._id, 'staff'); // permission change takes effect immediately
   return { staff: s, before };
 }
 export async function resetPassword(id, password) {
   const s = await StaffUser.findById(id); if (!s) throw ApiError.notFound('STAFF_NOT_FOUND', 'Staff member not found');
-  s.passwordHash = await hashPassword(password); s.mustChangePassword = true; s.refreshTokens = []; s.failedLogins = 0; s.lockUntil = undefined;
-  await s.save(); return s;
+  s.passwordHash = await hashPassword(password); s.mustChangePassword = true; s.failedLogins = 0; s.lockUntil = undefined;
+  await s.save(); await revokeAllSessions(s._id, 'staff'); return s;
 }
 export async function changeOwnPassword(id, current, next) {
   const s = await StaffUser.findById(id).select('+passwordHash'); 
   if (!(await bcrypt.compare(current, s.passwordHash))) throw ApiError.badRequest('WRONG_PASSWORD', 'Current password is incorrect');
-  s.passwordHash = await hashPassword(next); s.mustChangePassword = false; s.refreshTokens = []; await s.save();
+  s.passwordHash = await hashPassword(next); s.mustChangePassword = false; await s.save(); await revokeAllSessions(s._id, 'staff');
 }

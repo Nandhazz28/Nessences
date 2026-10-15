@@ -11,11 +11,13 @@ import { evaluateCoupon, computeTotals } from './pricing.js';
 export async function getCart(key, { create = false } = {}) {
   let cart = await Cart.findOne(key);
   if (!cart && create) {
-    cart = await Cart.create({ ...key, ...(key.guestId ? { expiresAt: new Date(Date.now() + COMMERCE.guestCartDays * 86400000) } : {}) });
+    try { cart = await Cart.create({ ...key, ...(key.guestId ? { expiresAt: new Date(Date.now() + COMMERCE.guestCartDays * 86400000) } : {}) }); }
+    catch (e) { if (e.code !== 11000) throw e; cart = await Cart.findOne(key); } 
   }
   return cart;
 }
 
+const unit = (p) => (p.salePrice != null && p.salePrice < p.price ? p.salePrice : p.price);
 const stockOf = (inv) => (inv ? Math.max(0, inv.stock - inv.reserved) : 0);
 
 async function loadSellable(variantId) {
@@ -76,23 +78,31 @@ export async function applyCoupon(cart, code) {
 }
 export async function removeCoupon(cart) { cart.couponCode = undefined; await cart.save(); }
 
-// Merge a guest cart into the signed-in user's cart (stock-clamped); guest cart is deleted.
 export async function mergeGuestCart(user, guestId) {
   if (!guestId) return;
-  const guest = await Cart.findOne({ guestId });
+  const guest = await Cart.findOneAndDelete({ guestId });
   if (!guest) return;
-  const mine = (await getCart({ user: user._id }, { create: true }));
-  for (const l of guest.items) {
-    try {
-      const { available } = await loadSellable(l.variant);
-      const have = mine.items.find((i) => String(i.variant) === String(l.variant))?.qty ?? 0;
-      const add = Math.min(l.qty, available - have, COMMERCE.maxLineQty - have);
-      if (add > 0) await addItem(mine, l.variant, add);
-    } catch { /* unavailable items are dropped */ }
+  try {
+    const mine = await getCart({ user: user._id }, { create: true });
+    for (const l of guest.items) {
+      try {
+        const { available } = await loadSellable(l.variant);
+        const have = mine.items.find((i) => String(i.variant) === String(l.variant))?.qty ?? 0;
+        const add = Math.min(l.qty, available - have, COMMERCE.maxLineQty - have);
+        if (add > 0) await addItem(mine, l.variant, add);
+      } catch (e) { if (!(e instanceof ApiError)) throw e; /* item no longer sellable: dropped */ }
+    }
+    for (const l of guest.saved) {
+      const v = String(l.variant);
+      if (mine.items.some((i) => String(i.variant) === v) || mine.saved.some((i) => String(i.variant) === v)) continue;
+      mine.saved.push({ variant: l.variant, product: l.product, qty: l.qty });
+    }
+    if (!mine.couponCode && guest.couponCode) mine.couponCode = guest.couponCode;
+    await mine.save();
+  } catch (err) {
+    await Cart.create({ guestId, items: guest.items, saved: guest.saved, couponCode: guest.couponCode, expiresAt: guest.expiresAt }).catch(() => {}); // do not lose the visitor's bag
+    throw err;
   }
-  if (!mine.couponCode && guest.couponCode) mine.couponCode = guest.couponCode;
-  await mine.save();
-  await Cart.deleteOne({ _id: guest._id });
 }
 
 async function hydrate(lines) {
@@ -114,7 +124,7 @@ async function hydrate(lines) {
     const img = [...p.images].filter((i) => i.color === v.color.name).sort((a, b) => a.order - b.order)[0] ?? p.images[0];
     const status = available <= 0 ? 'out_of_stock' : l.qty > available ? 'insufficient' : available <= 5 ? 'low_stock' : 'ok';
     return { ...base, productId: p._id, slug: p.slug, name: p.name, color: v.color.name, size: v.size, sku: v.sku,
-      image: img ? { url: deliveryUrl(img, 'thumb'), alt: img.alt, ...(img.publicId ? { publicId: img.publicId } : {}) } : null, price: p.price, unitPrice: p.effectivePrice, lineTotal: p.effectivePrice * l.qty,
+      image: img ? { url: deliveryUrl(img, 'thumb'), alt: img.alt, ...(img.publicId ? { publicId: img.publicId } : {}) } : null, price: p.price, unitPrice: unit(p), lineTotal: unit(p) * l.qty,
       available: Math.min(available, COMMERCE.maxLineQty), status };
   });
 }

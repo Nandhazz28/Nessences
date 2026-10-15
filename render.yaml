@@ -1,0 +1,67 @@
+services:
+  - type: web
+    name: nessence-api
+    runtime: node
+    region: singapore # closest Render region to India. Put your Atlas cluster in a nearby region (e.g. Mumbai or Singapore) to keep queries fast.
+    plan: starter # "free" works but sleeps after 15 minutes idle (30-60 s cold start) and cannot run preDeployCommand.
+    rootDir: server
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    preDeployCommand: npm run indexes
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.2
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+
+      - key: MONGODB_URI
+        sync: false
+
+      - key: CLIENT_URL
+        sync: false
+      - key: SERVER_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: COOKIE_SAMESITE
+        sync: false
+      - key: TRUST_PROXY_HOPS
+        value: "1"
+
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: REQUIRE_EMAIL_VERIFICATION
+        value: "true"
+
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
+      - key: BREVO_SENDER_NAME
+        value: Nessence
+
+      - key: PAYMENT_PROVIDER
+        value: razorpay
+      - key: PAYMENT_KEY
+        sync: false
+      - key: PAYMENT_SECRET
+        sync: false
+      - key: PAYMENT_WEBHOOK_SECRET
+        sync: false
+
+      - key: STORAGE_PROVIDER
+        value: cloudinary
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: CLOUDINARY_FOLDER
+        value: nessence

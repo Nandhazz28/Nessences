@@ -20,8 +20,8 @@ products.get('/:slug', validate({ params: slugParam }), asyncHandler(async (req,
 
 export const categories = Router();
 categories.get('/', validate({ query: z.object({ gender: z.enum(['men', 'women']).optional() }) }),
-  asyncHandler(async (req, res) => ok(res, await catalog.listCategories(req.query.gender))));
+  asyncHandler(async (req, res) => { res.set('Cache-Control', 'public, max-age=60'); ok(res, await catalog.listCategories(req.query.gender)); }));
 
 export const collections = Router();
-collections.get('/', asyncHandler(async (_req, res) => ok(res, await catalog.listCollections())));
-collections.get('/:slug', validate({ params: slugParam }), asyncHandler(async (req, res) => ok(res, await catalog.getCollection(req.params.slug))));
+collections.get('/', asyncHandler(async (_req, res) => { res.set('Cache-Control', 'public, max-age=60'); ok(res, await catalog.listCollections()); }));
+collections.get('/:slug', validate({ params: slugParam }), asyncHandler(async (req, res) => { res.set('Cache-Control', 'public, max-age=60'); ok(res, await catalog.getCollection(req.params.slug)); }));

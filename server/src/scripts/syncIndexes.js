@@ -1,8 +1,34 @@
-import mongoose from 'mongoose';
-import { connectDb } from '../config/db.js';
-import '../models/User.js'; import '../models/StaffUser.js'; import '../models/Address.js'; import '../models/Category.js';
-import '../models/Collection.js'; import '../models/Product.js'; import '../models/ProductVariant.js'; import '../models/Inventory.js'; import '../models/AdminAuditLog.js'; import '../models/Cart.js'; import '../models/Wishlist.js'; import '../models/Coupon.js'; import '../models/Order.js'; import '../models/Payment.js'; import '../models/Notification.js'; import '../models/Refund.js'; import '../models/ReturnRequest.js'; import '../models/Review.js'; import '../models/ReviewReport.js'; import '../models/NewsletterSubscriber.js'; import '../models/ContactMessage.js'; import '../models/Article.js'; import '../models/SiteContent.js'; import '../models/MediaAsset.js';
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import mongoose from "mongoose";
+import { connectDbWithRetry } from "../config/db.js";
 
-await connectDb();
-for (const name of mongoose.modelNames()) { await mongoose.model(name).syncIndexes(); console.log('indexes synced:', name); }
+const dir = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../models",
+);
+for (const f of fs
+  .readdirSync(dir)
+  .filter((n) => n.endsWith(".js"))
+  .sort())
+  await import(pathToFileURL(path.join(dir, f)).href);
+
+await connectDbWithRetry({ timeoutMs: 60_000 });
+let failed = 0;
+for (const name of mongoose.modelNames().sort()) {
+  try {
+    await mongoose.model(name).syncIndexes();
+    console.log("indexes synced:", name);
+  } catch (err) {
+    failed += 1;
+    console.error(`indexes FAILED for ${name}: ${err.message}`);
+  }
+}
 await mongoose.disconnect();
+console.log(
+  failed
+    ? `${failed} model(s) failed`
+    : `all ${mongoose.modelNames().length} models synced`,
+);
+process.exit(failed ? 1 : 0);

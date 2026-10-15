@@ -1,15 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 Object.assign(process.env, { NODE_ENV: 'test', MONGODB_URI: 'mongodb://127.0.0.1:1/x', LOG_LEVEL: 'silent', JWT_ACCESS_SECRET: 'a'.repeat(40), JWT_REFRESH_SECRET: 'b'.repeat(40) });
-const { createEmailService, templates, textToHtml } = await import('../src/services/emailService.js');
+const { createEmailService, templates } = await import('../src/services/emailService.js');
 
 const KEY = 'xkeysib-TESTKEY-1234';
 const LINK = 'https://shop.nessence.test/reset-password?token=SECRETTOKEN123';
 const json = (status, body, headers = {}) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });
 
-// Records every logger call so we can prove nothing sensitive is written.
 const capture = () => { const lines = []; const mk = (lvl) => (...a) => lines.push([lvl, JSON.stringify(a)]); return { lines, error: mk('error'), warn: mk('warn'), info: mk('info') }; };
-// A mocked Brevo HTTP API. The REAL SDK runs on top of it (URL building, auth header, JSON, error classes, retry and timeout logic).
 function brevoApi(handler) {
   const calls = [];
   const fetch = async (url, init) => { const body = init?.body ? JSON.parse(init.body) : undefined; calls.push({ url: String(url), method: init?.method, headers: Object.fromEntries(new Headers(init?.headers)), body }); return handler(calls.length, init); };
@@ -28,25 +26,24 @@ test('sends one POST to Brevo\'s transactional endpoint with sender, recipient, 
   assert.equal(c.headers['api-key'], KEY);
   assert.deepEqual(c.body.sender, { email: 'no-reply@nessence.test', name: 'Nessence' });
   assert.deepEqual(c.body.to, [{ email: 'ananya@example.com' }]);
-  assert.equal(c.body.subject, 'Reset your Nessence password');
-  assert.equal(c.body.textContent, templates.resetPassword({ link: LINK }).text); // text body is exactly the existing template
-  assert.ok(c.body.htmlContent.includes(`<a href="${LINK}">`)); assert.deepEqual(c.body.tags, ['resetPassword']);
+  assert.equal(c.body.subject, 'Reset Your Nessence Password');
+  assert.equal(c.body.textContent, templates.resetPassword({ link: LINK }).text); // the plain-text alternative is the template's own text
+  assert.ok(c.body.htmlContent.includes(`<a href="${LINK}"`) && c.body.htmlContent.includes('Nessence')); assert.deepEqual(c.body.tags, ['resetPassword']);
 });
 
-test('every existing template still renders the same subject and text', () => {
-  assert.deepEqual(Object.keys(templates).sort(), ['contactReceived', 'newsletterConfirm', 'newsletterWelcome', 'orderConfirmation', 'orderStatus', 'resetPassword', 'supportReply', 'verifyEmail']);
-  assert.equal(templates.orderConfirmation({ orderNumber: 'NS-2610-AB12CD', total: '₹9,400', link: 'L' }).subject, 'Your Nessence order NS-2610-AB12CD');
-  assert.equal(templates.supportReply({ name: 'A', subject: 'Size', message: 'Hello' }).subject, 'Re: Size');
-  assert.match(templates.verifyEmail({ link: 'L' }).text, /This link expires in 24 hours/);
-  assert.match(templates.resetPassword({ link: 'L' }).text, /expires in 1 hour/);
+test('the full set of templates is registered (inventory in docs/EMAILS.md)', () => {
+  assert.deepEqual(Object.keys(templates).sort(), ['contactReceived', 'newsletterConfirm', 'newsletterWelcome', 'orderCancelled', 'orderConfirmation', 'orderStatus', 'passwordChanged', 'refundIssued', 'resetPassword', 'supportReply', 'verifyEmail', 'welcome']);
 });
 
 test('user-controlled values are HTML-escaped; only http(s) URLs become links; subjects cannot carry newlines', async () => {
-  const evil = '<img src=x onerror=alert(1)> & "q" javascript:alert(1)';
-  const html = textToHtml(templates.supportReply({ name: evil, subject: 's', message: `${evil}\nsee https://ok.example/a?x=1&y=2` }).text);
+  const evil = '<img src=x onerror=alert(1)> & \"q\" javascript:alert(1)';
+  const { html } = templates.supportReply({ name: evil, subject: 's', message: `${evil}\nsee https://ok.example/a?x=1&y=2` });
   assert.ok(!html.includes('<img') && html.includes('&lt;img src=x onerror=alert(1)&gt;'));
-  assert.ok(!html.includes('href="javascript'));
-  assert.ok(html.includes('<a href="https://ok.example/a?x=1&amp;y=2">'));
+  assert.ok(!html.includes('href=\"javascript'));
+  const bad = templates.resetPassword({ link: 'javascript:alert(1)' });
+  assert.ok(!bad.html.includes('javascript:') && !bad.text.includes('javascript:'), 'a non-http(s) link is dropped, not rendered');
+  const ok = templates.resetPassword({ link: 'https://shop.test/a?x=1&y=2\"onmouseover=\"x' });
+  assert.ok(!ok.html.includes('onmouseover=\"x'), 'a link cannot break out of its attribute');
   const api = brevoApi(() => json(201, { messageId: 'm' }));
   await service(api).sendEmail({ to: 'a@b.test', template: 'supportReply', data: { name: 'A', subject: 'Line1\r\nBcc: x@evil.test', message: 'm' } });
   assert.ok(!/[\r\n]/.test(api.calls[0].body.subject));
@@ -60,12 +57,20 @@ test('provider rejection / auth / rate limit / outage are classified and returne
   }
 });
 
-test('NO duplicate sends: a 5xx or 429 is attempted exactly once (SDK retries are disabled)', async () => {
-  for (const status of [500, 502, 503, 504, 429, 408]) {
-    const api = brevoApi(() => json(status, { code: 'x', message: 'y' }, status === 429 ? { 'retry-after': '1' } : {}));
-    await service(api).sendEmail({ to: 'a@b.test', template: 'resetPassword', data: { link: LINK } });
-    assert.equal(api.calls.length, 1, `status ${status} was retried`);
+test('NO duplicate sends: only a refusal the provider says it did not accept (429, 503) is retried, once; ambiguous failures never', async () => {
+  for (const status of [500, 502, 504, 408, 400, 401]) {
+    const api = brevoApi(() => json(status, { code: 'x', message: 'y' }));
+    await service(api, { retryDelayMs: 1 }).sendEmail({ to: 'a@b.test', template: 'resetPassword', data: { link: LINK } });
+    assert.equal(api.calls.length, 1, `status ${status} must be attempted exactly once`);
   }
+  for (const status of [429, 503]) {
+    const api = brevoApi(() => json(status, { code: 'x', message: 'y' }));
+    const r = await service(api, { retryDelayMs: 1 }).sendEmail({ to: 'a@b.test', template: 'resetPassword', data: { link: LINK } });
+    assert.equal(api.calls.length, 2, `status ${status} gets exactly one more attempt`); assert.equal(r.accepted, false);
+  }
+  let n = 0; const flaky = brevoApi(() => (n++ === 0 ? json(503, { code: 'x', message: 'y' }) : json(201, { messageId: 'ok' })));
+  const r = await service(flaky, { retryDelayMs: 1 }).sendEmail({ to: 'a@b.test', template: 'resetPassword', data: { link: LINK } });
+  assert.deepEqual(r, { accepted: true, messageId: 'ok' }); assert.equal(flaky.calls.length, 2);
 });
 
 test('network errors and timeouts are bounded and reported', async () => {

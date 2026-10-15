@@ -251,7 +251,6 @@ export default function Home() {
   });
   const { settings } = useSettings();
   const origin = siteOrigin();
-  // Site-level structured data: the brand, its configured social profiles only, and the search box.
   useJsonLd("ld-site", {
     "@context": "https://schema.org",
     "@graph": [

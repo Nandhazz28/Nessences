@@ -103,7 +103,6 @@ describe('admin screens render against the API contract', () => {
   });
 });
 
-// ---- what the forms actually send ----
 const posts = () => globalThis.fetch.mock.calls.filter(([, init]) => init && init.method && init.method !== 'GET').map(([url, init]) => ({ url: new URL(String(url), 'http://x').pathname.replace('/api/admin', ''), method: init.method, body: init.body && typeof init.body === 'string' ? JSON.parse(init.body) : init.body }));
 const withWrites = () => { const base = globalThis.fetch; globalThis.fetch = vi.fn(async (url, init) => { if (init?.method && init.method !== 'GET') return new Response(JSON.stringify(one({ id: oid(1), _id: oid(1), status: 'processed' })), { status: 200 }); return base(url, init); }); };
 

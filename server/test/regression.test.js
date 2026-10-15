@@ -4,7 +4,7 @@ import mongoose from 'mongoose';
 import fs from 'node:fs';
 
 Object.assign(process.env, { NODE_ENV: 'test', MONGODB_URI: 'mongodb://127.0.0.1:1/x', LOG_LEVEL: 'silent', JWT_ACCESS_SECRET: 'a'.repeat(40), JWT_REFRESH_SECRET: 'b'.repeat(40) });
-await import('../src/config/db.js'); // applies the app's real mongoose configuration
+await import('../src/config/db.js'); 
 const { createApp } = await import('../src/app.js');
 const { sanitizeInput } = await import('../src/middleware/security.js');
 

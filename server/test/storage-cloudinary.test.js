@@ -9,7 +9,6 @@ const { deliveryUrl, presentImage, isCloudinaryAssetUrl, isAllowedImageUrl } = a
 const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(64)]);
 const silent = { error() {}, warn() {}, info() {} };
 
-// Mock of the Cloudinary v2 SDK surface we use. `uploads` records the exact options sent.
 function mockClient({ uploadResult, uploadError, destroyResult = { result: 'ok' }, destroyError } = {}) {
   const calls = { uploads: [], destroys: [] };
   return { calls, uploader: {
@@ -34,7 +33,7 @@ test('upload sends a server-chosen public_id, restricted formats, a size cap and
   assert.equal(o.public_id, id); assert.equal(o.resource_type, 'image'); assert.equal(o.overwrite, false); assert.equal(o.timeout, 5000);
   assert.deepEqual(o.allowed_formats, ['jpg', 'png', 'webp']);
   assert.equal(o.transformation[0].crop, 'limit');
-  assert.ok(!('upload_preset' in o)); // signed server upload, never an unsigned preset
+  assert.ok(!('upload_preset' in o));
 });
 
 test('upload refuses a public_id outside the configured folder', () => {

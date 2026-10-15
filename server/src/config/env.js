@@ -1,11 +1,13 @@
 import 'dotenv/config';
-import { parseEnv } from './envSchema.js';
+import { parseEnv, configWarnings } from './envSchema.js';
 
 const parsed = parseEnv(process.env);
 if (!parsed.ok) {
   console.error(`Invalid environment configuration:\n${parsed.errors.map((l) => `  - ${l}`).join('\n')}`);
   process.exit(1);
 }
+
+for (const w of configWarnings(parsed.data)) console.warn(`Configuration warning: ${w}`);
 
 export const env = {
   ...parsed.data,

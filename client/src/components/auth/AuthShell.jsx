@@ -20,5 +20,4 @@ export function Field({ label, error, ...props }) {
   );
 }
 
-// Maps server `details` ([{field,message}]) onto fields.
 export const fieldErrors = (err) => Object.fromEntries((err?.details ?? []).map((d) => [d.field, d.message]));

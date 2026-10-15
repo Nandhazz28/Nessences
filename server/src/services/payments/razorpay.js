@@ -31,7 +31,6 @@ export const razorpay = {
     return { id: j.id, amount: j.amount, currency: j.currency };
   },
 
-  // Refund (full or partial) against a captured payment. amount in paise.
   async refund({ paymentId, amount, notes }) {
     let res;
     try {
@@ -45,12 +44,9 @@ export const razorpay = {
     const j = await res.json();
     return { id: j.id, status: j.status };
   },
-
-  // Razorpay Checkout returns order_id, payment_id and signature = HMAC_SHA256(order_id|payment_id, key_secret)
   verifyCheckoutSignature: ({ orderId, paymentId, signature }) =>
     Boolean(env.PAYMENT_SECRET) && safeEq(hmac(env.PAYMENT_SECRET, `${orderId}|${paymentId}`), signature),
 
-  // Webhook signature = HMAC_SHA256(raw request body, webhook secret)
   verifyWebhookSignature: (rawBody, signature) =>
     Boolean(env.PAYMENT_WEBHOOK_SECRET) && safeEq(hmac(env.PAYMENT_WEBHOOK_SECRET, rawBody), signature),
 };

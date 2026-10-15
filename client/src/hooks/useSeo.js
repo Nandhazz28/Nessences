@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
-const SITE = (import.meta.env.VITE_SITE_URL ?? '').replace(/\/+$/, '');
+import { resolveSiteUrl } from '../urlConfig.js';
+const SITE = resolveSiteUrl(import.meta.env.VITE_SITE_URL);
 export const siteOrigin = () => SITE || window.location.origin;
 const DEFAULT_TITLE = 'Nessence — Contemporary fashion for men and women';
 const DEFAULT_DESC = 'Premium contemporary fashion for men and women. Considered cloth, clean cut, quiet detail.';

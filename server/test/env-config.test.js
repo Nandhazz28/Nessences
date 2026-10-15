@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 const { parseEnv } = await import('../src/config/envSchema.js');
 
 const base = { MONGODB_URI: 'mongodb://x', JWT_ACCESS_SECRET: 'a'.repeat(40), JWT_REFRESH_SECRET: 'b'.repeat(40) };
-const prodOk = { ...base, NODE_ENV: 'production', CLOUDINARY_CLOUD_NAME: 'demo', CLOUDINARY_API_KEY: 'k', CLOUDINARY_API_SECRET: 'sekret', BREVO_API_KEY: 'xkeysib-abc', BREVO_SENDER_EMAIL: 'no-reply@nessence.test' };
+const prodOk = { ...base, NODE_ENV: 'production', CLIENT_URL: 'https://www.nessence.in', SERVER_URL: 'https://api.nessence.in', CLOUDINARY_CLOUD_NAME: 'demo', CLOUDINARY_API_KEY: 'k', CLOUDINARY_API_SECRET: 'sekret', BREVO_API_KEY: 'xkeysib-abc', BREVO_SENDER_EMAIL: 'no-reply@nessence.test' };
 const errs = (src) => { const r = parseEnv(src); return r.ok ? [] : r.errors; };
 
 test('development defaults to local storage and needs no email credentials', () => {
@@ -56,4 +56,29 @@ test('folder prefix and size limit are validated', () => {
 test('validation messages never contain secret values', () => {
   const all = errs({ ...prodOk, CLOUDINARY_FOLDER: 'BAD!', BREVO_API_KEY: 'xsmtpsib-SUPERSECRET', STORAGE_PROVIDER: 'local' }).join('\n');
   assert.ok(!all.includes('SUPERSECRET') && !all.includes('sekret'));
+});
+
+test('production must name its real public URLs: no silent localhost fallback, https only', async () => {
+  const { parseEnv } = await import('../src/config/envSchema.js');
+  const { CLIENT_URL, SERVER_URL, ...rest } = prodOk;
+  const e = errs(rest).join('\n'); assert.match(e, /CLIENT_URL: required in production/); assert.match(e, /SERVER_URL: required in production/);
+  assert.match(errs({ ...prodOk, CLIENT_URL: 'http://localhost:5173' }).join(), /CLIENT_URL: must be the real public URL/);
+  assert.match(errs({ ...prodOk, CLIENT_URL: 'http://www.nessence.in' }).join(), /CLIENT_URL: must use https/);
+  assert.equal(parseEnv(prodOk).ok, true);
+  const dev = parseEnv(base); assert.equal(dev.data.CLIENT_URL, 'http://localhost:5173'); assert.equal(dev.data.SERVER_URL, 'http://localhost:4000');
+});
+
+test('cookie settings are checked against the deployment instead of being guessed', async () => {
+  const { configWarnings } = await import('../src/config/envSchema.js');
+  assert.match(errs({ ...base, COOKIE_SAMESITE: 'none' }).join(), /COOKIE_SAMESITE: none requires Secure/);
+  assert.match(errs({ ...prodOk, COOKIE_DOMAIN: 'other-site.com' }).join(), /matches neither CLIENT_URL nor SERVER_URL/);
+  assert.match(errs({ ...prodOk, COOKIE_DOMAIN: 'https://nessence.in' }).join(), /bare domain/);
+  assert.match(errs({ ...prodOk, CLIENT_URL: 'https://nessence.vercel.app', SERVER_URL: 'https://api.nessence.in', COOKIE_DOMAIN: 'vercel.app' }).join(), /public suffix/);
+  assert.equal(parseEnv({ ...prodOk, COOKIE_DOMAIN: '.nessence.in' }).ok, true, 'a shared parent domain is fine');
+  assert.deepEqual(configWarnings(parseEnv(prodOk).data), []);
+  const cross = parseEnv({ ...prodOk, CLIENT_URL: 'https://nessence.vercel.app', SERVER_URL: 'https://nessence-api.onrender.com' }).data;
+  assert.match(configWarnings(cross).join(), /different sites but COOKIE_SAMESITE=lax/);
+  assert.deepEqual(configWarnings({ ...cross, COOKIE_SAMESITE: 'none' }), []);
+  const sibling = parseEnv({ ...prodOk, CLIENT_URL: 'https://a.onrender.com', SERVER_URL: 'https://b.onrender.com' }).data;
+  assert.match(configWarnings(sibling).join(), /different sites/);
 });

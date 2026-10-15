@@ -34,7 +34,6 @@ export async function publicSettings() {
 }
 export const saveSettings = (data, staff) => SiteContent.findOneAndUpdate({ key: 'settings' }, { $set: { title: 'Settings', data, updatedBy: staff._id } }, { new: true, upsert: true });
 
-// ---- journal ----
 export const articleBody = z.object({
   title: z.string().trim().min(3).max(140), slug: z.string().regex(/^[a-z0-9-]{2,90}$/).optional(), excerpt: z.string().trim().min(10).max(300),
   coverImage: z.object({ url: z.string().refine(isAllowedImageUrl, 'Upload images through the image uploader'), alt: z.string().trim().min(3).max(140) }).strict().optional(),

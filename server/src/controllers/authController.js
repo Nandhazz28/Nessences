@@ -3,7 +3,8 @@ import { ok } from '../utils/respond.js';
 import { User } from '../models/User.js';
 import { StaffUser } from '../models/StaffUser.js';
 import * as auth from '../services/authService.js';
-import { setAuthCookies, clearAuthCookies, rotateSession, revokeSession, scopeOf } from '../services/sessionService.js';
+import { setAuthCookies, clearAuthCookies, rotateSession, revokeSession, scopeOf, isSessionEnded } from '../services/sessionService.js';
+import { logger } from '../config/logger.js';
 import { audit } from '../services/auditService.js';
 import { mergeGuestCart } from '../services/cartService.js';
 import { GUEST_COOKIE, clearGuestCookie } from '../middleware/cartContext.js';
@@ -17,7 +18,7 @@ export const register = asyncHandler(async (req, res) => {
 export const login = asyncHandler(async (req, res) => {
   const { user, tokens } = await auth.loginCustomer(req.body, ua(req));
   setAuthCookies(res, 'customer', tokens);
-  await mergeGuestCart(user, req.cookies?.[GUEST_COOKIE]).catch(() => {}); // never block sign-in on a cart problem
+  await mergeGuestCart(user, req.cookies?.[GUEST_COOKIE]).catch((err) => logger.error({ err, user: String(user._id) }, 'guest cart merge failed')); // never block sign-in on a cart problem, but never hide it either
   clearGuestCookie(res);
   ok(res, { user: user.toPublic() });
 });
@@ -26,10 +27,10 @@ export const refresh = asyncHandler(async (req, res) => {
     const { account, tokens } = await rotateSession(User, 'customer', req.cookies?.[scopeOf('customer').rt], ua(req));
     setAuthCookies(res, 'customer', tokens);
     ok(res, { user: account.toPublic() });
-  } catch (e) { clearAuthCookies(res, 'customer'); throw e; }
+  } catch (e) { if (isSessionEnded(e)) clearAuthCookies(res, 'customer'); throw e; }
 });
 export const logout = asyncHandler(async (req, res) => {
-  await revokeSession(User, req.cookies?.[scopeOf('customer').rt]);
+  await revokeSession(req.cookies?.[scopeOf('customer').rt], 'customer');
   clearAuthCookies(res, 'customer');
   ok(res, { loggedOut: true });
 });
@@ -50,7 +51,6 @@ export const changePassword = asyncHandler(async (req, res) => {
   ok(res, { changed: true, reauthenticate: true });
 });
 
-// ---- staff ----
 export const staffLogin = asyncHandler(async (req, res) => {
   const { staff, tokens } = await auth.loginStaff(req.body, ua(req));
   setAuthCookies(res, 'staff', tokens);
@@ -62,10 +62,10 @@ export const staffRefresh = asyncHandler(async (req, res) => {
     const { account, tokens } = await rotateSession(StaffUser, 'staff', req.cookies?.[scopeOf('staff').rt], ua(req));
     setAuthCookies(res, 'staff', tokens);
     ok(res, { staff: account.toPublic() });
-  } catch (e) { clearAuthCookies(res, 'staff'); throw e; }
+  } catch (e) { if (isSessionEnded(e)) clearAuthCookies(res, 'staff'); throw e; }
 });
 export const staffLogout = asyncHandler(async (req, res) => {
-  await revokeSession(StaffUser, req.cookies?.[scopeOf('staff').rt]);
+  await revokeSession(req.cookies?.[scopeOf('staff').rt], 'staff');
   clearAuthCookies(res, 'staff');
   ok(res, { loggedOut: true });
 });

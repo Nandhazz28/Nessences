@@ -6,12 +6,12 @@ const paymentSchema = new mongoose.Schema({
   provider: { type: String, required: true },
   providerOrderId: { type: String, required: true, unique: true },
   providerPaymentId: { type: String, sparse: true, index: true },
-  amount: { type: Number, required: true, min: 100 }, // paise
+  amount: { type: Number, required: true, min: 100 }, 
   currency: { type: String, default: 'INR' },
   status: { type: String, enum: ['created', 'captured', 'failed', 'refunded'], default: 'created' },
   method: String,
   failureReason: String,
-  processedEvents: { type: [String], select: false }, // webhook event ids already handled (idempotency)
+  processedEvents: { type: [String], select: false }, 
 }, { timestamps: true });
 
 export const Payment = mongoose.model('Payment', paymentSchema);

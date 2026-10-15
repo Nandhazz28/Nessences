@@ -1,11 +1,5 @@
 import mongoose from 'mongoose';
 
-const refreshSchema = new mongoose.Schema({
-  hash: { type: String, required: true },
-  expiresAt: { type: Date, required: true },
-  userAgent: String,
-}, { _id: false });
-
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true, minlength: 2, maxlength: 80 },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true, maxlength: 254 },
@@ -22,7 +16,6 @@ const userSchema = new mongoose.Schema({
   resetTokenExpires: { type: Date, select: false },
   failedLogins: { type: Number, default: 0, select: false },
   lockUntil: { type: Date, select: false },
-  refreshTokens: { type: [refreshSchema], default: [], select: false },
   lastLoginAt: Date,
 }, { timestamps: true });
 
