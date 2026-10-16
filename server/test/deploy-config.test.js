@@ -28,7 +28,7 @@ test('build, start and pre-deploy commands exist as npm scripts; production depe
 test('health check path is the liveness/startup gate that exists in the app and is not the DB-coupled one', () => {
   assert.equal(svc.healthCheckPath, '/health');
   const app = fs.readFileSync(path.join(root, 'server/src/app.js'), 'utf8');
-  assert.match(app, /app\.get\('\/health'/); assert.match(app, /app\.get\('\/ready'/);
+  assert.match(app, /app\.get\(['"]\/health['"]/); assert.match(app, /app\.get\(['"]\/ready['"]/);
 });
 
 test('Node version is pinned and satisfies package.json engines', () => {
